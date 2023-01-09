@@ -298,14 +298,21 @@ class mpu6050:
         else:
             return value
 
-    def set_sample_rate_divider(self, rate_div):
-        self.bus.write_byte_data(self.address, self.SAMPLE_RATE_DIV, rate_div)
-
-    def enable_fifo(self):
-        self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b01000100)
+    def setSampleRate(self, Rate):
+        SampleReg =  int(( 8000 / Rate) -1)
+        self.SampleRate = 8000.0 / (SampleReg + 1.0)
+        self.bus.write_byte_data(self.address,self.SAMPLE_RATE_DIV,SampleReg)
 
     def reset_fifo(self):
+        self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b00000000)
+        pass
         self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b00000100)
+        pass
+        self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b01000000)
+
+    def enable_fifo(self):
+        self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b00000000)
+        self.reset_fifo()
 
     def configure_fifo(self, flags):
         self.bus.write_byte_data(self.address, self.FIFO_CONFIG, flags)
@@ -317,7 +324,7 @@ class mpu6050:
 
     def get_fifo_data_acc(self,dataLen):
         block = []
-        
+        dataLen = dataLen//6*6 #ONLY VALID FOR FIFO_FLAG_AXYZ
         while dataLen != 0:
             read_len = dataLen
             if dataLen > 32:
@@ -332,11 +339,9 @@ class mpu6050:
         accel_z = []
         accels = [accel_x,accel_y,accel_z]
         counter = 0
-        print(len(block))
+
         for i in range(0,len(block),2):
             data = self.bytesToInteger(block[i],block[i+1])
-            # bytes = (block[i] << 8) | block[i+1]
-            # data = int.from_bytes(bytes,byteorder='big', signed=True) 
             
             if counter == 0:
                 #print(data)
