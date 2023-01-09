@@ -8,7 +8,9 @@ Copyright (c) 2015, 2016, 2017, 2021 Martijn (martijn@mrtijn.nl) and contributer
 https://github.com/m-rtijn/mpu6050
 """
 
-import smbus
+#import smbus
+from smbus2 import SMBus
+import numpy as np
 
 class mpu6050:
 
@@ -39,13 +41,13 @@ class mpu6050:
     GYRO_RANGE_1000DEG = 0x10
     GYRO_RANGE_2000DEG = 0x18
 
-    FILTER_BW_256=0x00
-    FILTER_BW_188=0x01
-    FILTER_BW_98=0x02
-    FILTER_BW_42=0x03
-    FILTER_BW_20=0x04
-    FILTER_BW_10=0x05
-    FILTER_BW_5=0x06
+    FILTER_BW_256 = 0x00
+    FILTER_BW_188 = 0x01
+    FILTER_BW_98 = 0x02
+    FILTER_BW_42 = 0x03
+    FILTER_BW_20 = 0x04
+    FILTER_BW_10 = 0x05
+    FILTER_BW_5 = 0x06
 
     # MPU-6050 Registers
     PWR_MGMT_1 = 0x6B
@@ -64,10 +66,21 @@ class mpu6050:
     ACCEL_CONFIG = 0x1C
     GYRO_CONFIG = 0x1B
     MPU_CONFIG = 0x1A
+    FIFO_CONFIG = 0x23
+    FIFO_COUNT_L = 0x73
+    FIFO_COUNT_H = 0x72
+    FIFO_OUT = 0x74
+    FIFO_FLAG_TEMP = 0b10000000
+    FIFO_FLAG_GX = 0b01000000
+    FIFO_FLAG_GY = 0b00100000
+    FIFO_FLAG_GZ = 0b00010000
+    FIFO_FLAG_AXYZ = 0b00001000
+    SAMPLE_RATE_DIV = 0x19
+    USER_CONTROL = 0x6A
 
     def __init__(self, address, bus=1):
         self.address = address
-        self.bus = smbus.SMBus(bus)
+        self.bus = SMBus(bus)
         # Wake up the MPU-6050 since it starts in sleep mode
         self.bus.write_byte_data(self.address, self.PWR_MGMT_1, 0x00)
 
@@ -89,6 +102,20 @@ class mpu6050:
             return -((65535 - value) + 1)
         else:
             return value
+
+    def read_i2c_word_unsigned(self, register):
+        """Read two i2c registers and combine them.
+
+        register -- the first register to read from.
+        Returns the combined read results.
+        """
+        # Read the data from the registers
+        high = self.bus.read_byte_data(self.address, register)
+        low = self.bus.read_byte_data(self.address, register + 1)
+
+        value = (high << 8) + low
+
+        return value
 
     # MPU-6050 Methods
 
@@ -117,7 +144,7 @@ class mpu6050:
         # Write the new range to the ACCEL_CONFIG register
         self.bus.write_byte_data(self.address, self.ACCEL_CONFIG, accel_range)
 
-    def read_accel_range(self, raw = False):
+    def read_accel_range(self, raw=False):
         """Reads the range the accelerometer is set to.
 
         If raw is True, it will return the raw value from the ACCEL_CONFIG
@@ -141,7 +168,7 @@ class mpu6050:
             else:
                 return -1
 
-    def get_accel_data(self, g = False):
+    def get_accel_data(self, g=False):
         """Gets and returns the X, Y and Z values from the accelerometer.
 
         If g is True, it will return the data in g
@@ -155,29 +182,30 @@ class mpu6050:
         accel_scale_modifier = None
         accel_range = self.read_accel_range(True)
 
-        if accel_range == self.ACCEL_RANGE_2G:
-            accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_2G
-        elif accel_range == self.ACCEL_RANGE_4G:
-            accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_4G
-        elif accel_range == self.ACCEL_RANGE_8G:
-            accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_8G
-        elif accel_range == self.ACCEL_RANGE_16G:
-            accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_16G
-        else:
-            print("Unkown range - accel_scale_modifier set to self.ACCEL_SCALE_MODIFIER_2G")
-            accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_2G
+        # if accel_range == self.ACCEL_RANGE_2G:
+        #     accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_2G
+        # elif accel_range == self.ACCEL_RANGE_4G:
+        #     accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_4G
+        # elif accel_range == self.ACCEL_RANGE_8G:
+        #     accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_8G
+        # elif accel_range == self.ACCEL_RANGE_16G:
+        #     accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_16G
+        # else:
+        #     print(
+        #         "Unkown range - accel_scale_modifier set to self.ACCEL_SCALE_MODIFIER_2G")
+        #     accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_2G
 
-        x = x / accel_scale_modifier
-        y = y / accel_scale_modifier
-        z = z / accel_scale_modifier
+        # x = x / accel_scale_modifier
+        # y = y / accel_scale_modifier
+        # z = z / accel_scale_modifier
 
-        if g is True:
-            return {'x': x, 'y': y, 'z': z}
-        elif g is False:
-            x = x * self.GRAVITIY_MS2
-            y = y * self.GRAVITIY_MS2
-            z = z * self.GRAVITIY_MS2
-            return {'x': x, 'y': y, 'z': z}
+        # if g is True:
+        #     return {'x': x, 'y': y, 'z': z}
+        # elif g is False:
+        #     x = x * self.GRAVITIY_MS2
+        #     y = y * self.GRAVITIY_MS2
+        #     z = z * self.GRAVITIY_MS2
+        return {'x': x, 'y': y, 'z': z}
 
     def set_gyro_range(self, gyro_range):
         """Sets the range of the gyroscope to range.
@@ -194,11 +222,11 @@ class mpu6050:
     def set_filter_range(self, filter_range=FILTER_BW_256):
         """Sets the low-pass bandpass filter frequency"""
         # Keep the current EXT_SYNC_SET configuration in bits 3, 4, 5 in the MPU_CONFIG register
-        EXT_SYNC_SET = self.bus.read_byte_data(self.address, self.MPU_CONFIG) & 0b00111000
+        EXT_SYNC_SET = self.bus.read_byte_data(
+            self.address, self.MPU_CONFIG) & 0b00111000
         return self.bus.write_byte_data(self.address, self.MPU_CONFIG,  EXT_SYNC_SET | filter_range)
 
-
-    def read_gyro_range(self, raw = False):
+    def read_gyro_range(self, raw=False):
         """Reads the range the gyroscope is set to.
 
         If raw is True, it will return the raw value from the GYRO_CONFIG
@@ -227,6 +255,7 @@ class mpu6050:
 
         Returns the read values in a dictionary.
         """
+        self.read_i2c_word
         x = self.read_i2c_word(self.GYRO_XOUT0)
         y = self.read_i2c_word(self.GYRO_YOUT0)
         z = self.read_i2c_word(self.GYRO_ZOUT0)
@@ -243,7 +272,8 @@ class mpu6050:
         elif gyro_range == self.GYRO_RANGE_2000DEG:
             gyro_scale_modifier = self.GYRO_SCALE_MODIFIER_2000DEG
         else:
-            print("Unkown range - gyro_scale_modifier set to self.GYRO_SCALE_MODIFIER_250DEG")
+            print(
+                "Unkown range - gyro_scale_modifier set to self.GYRO_SCALE_MODIFIER_250DEG")
             gyro_scale_modifier = self.GYRO_SCALE_MODIFIER_250DEG
 
         x = x / gyro_scale_modifier
@@ -259,6 +289,69 @@ class mpu6050:
         gyro = self.get_gyro_data()
 
         return [accel, gyro, temp]
+
+    # NEW
+    def bytesToInteger(self,byte1,byte2):
+        value = (byte1 << 8) | byte2
+        if (value >= 0x8000):
+            return -((65535 - value) + 1)
+        else:
+            return value
+
+    def set_sample_rate_divider(self, rate_div):
+        self.bus.write_byte_data(self.address, self.SAMPLE_RATE_DIV, rate_div)
+
+    def enable_fifo(self):
+        self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b01000100)
+
+    def reset_fifo(self):
+        self.bus.write_byte_data(self.address, self.USER_CONTROL, 0b00000100)
+
+    def configure_fifo(self, flags):
+        self.bus.write_byte_data(self.address, self.FIFO_CONFIG, flags)
+
+    def get_fifo_length(self):
+        #self.bus.write_byte_data(self.address, self.FIFO_COUNT_H, 0)
+        len = self.read_i2c_word_unsigned(self.FIFO_COUNT_H)
+        return len
+
+    def get_fifo_data_acc(self,dataLen):
+        block = []
+        
+        while dataLen != 0:
+            read_len = dataLen
+            if dataLen > 32:
+                read_len=32
+            
+            block += self.bus.read_i2c_block_data(self.address, self.FIFO_OUT, read_len)
+            dataLen-=read_len
+        
+        
+        accel_x = []
+        accel_y = []
+        accel_z = []
+        accels = [accel_x,accel_y,accel_z]
+        counter = 0
+        print(len(block))
+        for i in range(0,len(block),2):
+            data = self.bytesToInteger(block[i],block[i+1])
+            # bytes = (block[i] << 8) | block[i+1]
+            # data = int.from_bytes(bytes,byteorder='big', signed=True) 
+            
+            if counter == 0:
+                #print(data)
+                accels[0].append(data)
+            elif counter == 1:
+                accels[1].append(data)
+            elif counter == 2:
+                accels[2].append(data)
+                counter = 0
+                continue
+            else:
+                counter = 0
+            counter+=1
+        return accels
+
 
 if __name__ == "__main__":
     mpu = mpu6050(0x68)
