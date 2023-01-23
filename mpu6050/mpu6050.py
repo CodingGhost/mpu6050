@@ -315,6 +315,7 @@ class mpu6050:
         self.reset_fifo()
 
     def configure_fifo(self, flags):
+        self.bus.write_byte_data(self.address, self.FIFO_CONFIG, 0)
         self.bus.write_byte_data(self.address, self.FIFO_CONFIG, flags)
 
     def get_fifo_length(self):
